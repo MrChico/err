@@ -247,7 +247,6 @@ rule ACCTCODE in SetItem( 1 )
     rule A -Int (#if C #then B1 #else B2 #fi) => #if C #then (A -Int B1) #else (A -Int B2) #fi
 
     rule (#if C #then B1 #else B2 #fi) -Int A => #if C #then (B1 -Int A) #else (B2 -Int A) #fi 
-        when notBool #isConcrete(A) andBool #notKLabel(A, "#if_#then_#else_#fi_K-EQUAL")
     rule (#if C #then B1 #else B2 #fi) +Int A => #if C #then (B1 +Int A) #else (B2 +Int A) #fi
 
     rule (#if C #then B1 #else B2 #fi) >Int A => true
@@ -543,7 +542,7 @@ rule #Dai.totalSupply => 5
 syntax Int ::= "#Dai.balanceOf" "[" Int "]" [function]
 // -----------------------------------------------
 // doc: the balance of a user
-// act: the balance of `$0 is .` us , 
+// act: the balance of `$0 is .` us ,
 rule #Dai.balanceOf[A] => #hashedLocation("Solidity", 6, A)
 
 syntax Int ::= "#Dai.allowance" "[" Int "][" Int "]" [function]
@@ -563,12 +562,41 @@ syntax Int ::= "#Dai.DOMAIN_SEPARATOR" [function]
 // doc: the amount that can be spent on someones behalf
 // act: `$1 can spend `.` tokens belonging to `$0`
 rule #Dai.DOMAIN_SEPARATOR => 9
-
-syntax Int ::= "#Dai.permit_TYPEHASH" [function]
+syntax Int ::= "#Jug.wards" "[" Int "]" [function]
 // -----------------------------------------------
-// doc: the amount that can be spent on someones behalf
-// act: `$1 can spend `.` tokens belonging to `$0`
-rule #Dai.permit_TYPEHASH => 10
+// doc: whether `$0` is an owner of `Jug`
+// act: address `$0` is `. == 1 ? authorised : unauthorised`
+rule #Jug.wards[A] => #hashedLocation("Solidity", 0, A)
+
+syntax Int ::= "#Jug.ilks" "[" Int "].duty" [function]
+// ----------------------------------------------------
+// doc:
+// act:
+rule #Jug.ilks[Ilk].duty => #hashedLocation("Solidity", 1, Ilk) +Int 0
+
+syntax Int ::= "#Jug.ilks" "[" Int "].rho" [function]
+// ----------------------------------------------------
+// doc:
+// act:
+rule #Jug.ilks[Ilk].rho => #hashedLocation("Solidity", 1, Ilk) +Int 1
+
+syntax Int ::= "#Jug.vat" [function]
+// ----------------------------------
+// doc: `Vat` that this `Jug` points to
+// act: this Jug points to Vat `.`
+rule #Jug.vat => 2
+
+syntax Int ::= "#Jug.vow" [function]
+// ----------------------------------
+// doc: `Vow` that this `Jug` points to
+// act: this Jug points to Vow `.`
+rule #Jug.vow => 3
+
+syntax Int ::= "#Jug.base" [function]
+// ----------------------------------
+// doc:
+// act:
+rule #Jug.base => 4
 syntax Int ::= "#Drip.wards" "[" Int "]" [function]
 // -----------------------------------------------
 // doc: whether `$0` is an owner of `Drip`
@@ -644,31 +672,31 @@ syntax Int ::= "#Vow.Ash" [function]
 // ---------------------------------
 // doc: total sin in debt auctions
 // act: the total sin in debt auctions is `.`
-rule #Vow.Ash => 7
+rule #Vow.Ash => 6
 
 syntax Int ::= "#Vow.wait" [function]
 // ----------------------------------
 // doc: sin maturation time
 // act: the sin maturation time is `.`
-rule #Vow.wait => 8
+rule #Vow.wait => 7
 
 syntax Int ::= "#Vow.sump" [function]
 // ----------------------------------
 // doc: debt auction lot size
 // act: the debt auction lot size is `.`
-rule #Vow.sump => 9
+rule #Vow.sump => 8
 
 syntax Int ::= "#Vow.bump" [function]
 // ----------------------------------
 // doc: surplus auction lot size
 // act: the surplus auction lot size is `.`
-rule #Vow.bump => 10
+rule #Vow.bump => 9
 
 syntax Int ::= "#Vow.hump" [function]
 // ---------------------------------
 // doc: surplus dai cushion
 // act: the surplus dai cushion is `.`
-rule #Vow.hump => 11
+rule #Vow.hump => 10
 syntax Int ::= "#Cat.wards" "[" Int "]" [function]
 // ---------------------------------
 // doc: whether `$0` is an owner of `Cat`
@@ -1122,9 +1150,19 @@ rule abs(#unsigned(A *Int B)) /Int abs(#unsigned(B)) => A
   andBool #rangeSInt(256, A *Int B)
   andBool notBool (#unsigned(B) ==Int 0)
 
+
+rule abs(B) ==K 0 => B ==K 0
+
 // possibly get rid of
 rule #sgnInterp(sgn(W), abs(W)) => W
   requires #rangeUInt(256, W)
+
+rule #sgnInterp(sgn(#unsigned(A *Int B) *Int sgn(#unsigned(B))), A) => A
+  requires #rangeSInt(256, A *Int B)
+  andBool #rangeUInt(256, A)
+  andBool #rangeSInt(256, B)
+  andBool #rangeSInt(256, A)
+
 
 rule #sgnInterp(sgn(#unsigned(A *Int B)), A) => A
   requires #rangeUInt(256, A)
