@@ -14,19 +14,6 @@ module RULES
     rule nthbyteof(V, I, N) => nthbyteof(V /Int 256, I, N -Int 1) when N  >Int (I +Int 1) [concrete]
     rule nthbyteof(V, I, N) =>           V modInt 256             when N ==Int (I +Int 1) [concrete]
 
-    syntax Map ::= Map "+Map" Map [function] //concatenates two maps if their keys are disjoint
-
-    rule M +Map (K1 |-> V1) => M (K1 |-> V1)
-    requires notBool #inKeys(M, K1)
-
-    syntax Bool ::= #inKeys(Map, Int) [function]
-
-    rule #inKeys(.Map, KEY) => false
-    rule #inKeys((M:Map K0 |-> V0), K1) => true
-         requires K0 ==K K1
-    rule #inKeys((M:Map K0 |-> V0), K1) => #inKeys(M, K1)
-         requires K0 =/=K K1
-
     rule bool2Word(notBool(A ==K 0)) => A
          requires #rangeUInt(1, A)
 
@@ -141,6 +128,40 @@ module RULES
                 : nthbyteof(keccakIntList(V), 31, 32)
                 : .WordStack ) => keccakIntList(V)
 
+    rule #asWord( nthbyteof(#symEcrec(V),  0, 32)
+                : nthbyteof(#symEcrec(V),  1, 32)
+                : nthbyteof(#symEcrec(V),  2, 32)
+                : nthbyteof(#symEcrec(V),  3, 32)
+                : nthbyteof(#symEcrec(V),  4, 32)
+                : nthbyteof(#symEcrec(V),  5, 32)
+                : nthbyteof(#symEcrec(V),  6, 32)
+                : nthbyteof(#symEcrec(V),  7, 32)
+                : nthbyteof(#symEcrec(V),  8, 32)
+                : nthbyteof(#symEcrec(V),  9, 32)
+                : nthbyteof(#symEcrec(V), 10, 32)
+                : nthbyteof(#symEcrec(V), 11, 32)
+                : nthbyteof(#symEcrec(V), 12, 32)
+                : nthbyteof(#symEcrec(V), 13, 32)
+                : nthbyteof(#symEcrec(V), 14, 32)
+                : nthbyteof(#symEcrec(V), 15, 32)
+                : nthbyteof(#symEcrec(V), 16, 32)
+                : nthbyteof(#symEcrec(V), 17, 32)
+                : nthbyteof(#symEcrec(V), 18, 32)
+                : nthbyteof(#symEcrec(V), 19, 32)
+                : nthbyteof(#symEcrec(V), 20, 32)
+                : nthbyteof(#symEcrec(V), 21, 32)
+                : nthbyteof(#symEcrec(V), 22, 32)
+                : nthbyteof(#symEcrec(V), 23, 32)
+                : nthbyteof(#symEcrec(V), 24, 32)
+                : nthbyteof(#symEcrec(V), 25, 32)
+                : nthbyteof(#symEcrec(V), 26, 32)
+                : nthbyteof(#symEcrec(V), 27, 32)
+                : nthbyteof(#symEcrec(V), 28, 32)
+                : nthbyteof(#symEcrec(V), 29, 32)
+                : nthbyteof(#symEcrec(V), 30, 32)
+                : nthbyteof(#symEcrec(V), 31, 32)
+                : .WordStack ) => #symEcrec(V)
+
 
 rule ACCTCODE in SetItem( 1 )
                  SetItem ( 2 )
@@ -173,7 +194,7 @@ rule ACCTCODE in SetItem( 1 )
 
     rule #padToWidth(32, #asByteStack( keccakIntList (V) )) => #asByteStackInWidth( keccakIntList (V), 32)
 
-
+    rule #padToWidth(32, #asByteStack( #symEcrec(V) )) => #asByteStackInWidth( #symEcrec(V), 32)
 
 
    // for Vyper
@@ -217,6 +238,7 @@ rule ACCTCODE in SetItem( 1 )
     rule _ *Int 0 => 0
 
     rule N /Int 1 => N
+    rule N *Int A /Int A => N
 
     rule 0 |Int N => N
     rule N |Int 0 => N
@@ -242,6 +264,11 @@ rule ACCTCODE in SetItem( 1 )
     // 0xffff...f &Int N = N
     rule MASK &Int N => N  requires MASK ==Int (2 ^Int (log2Int(MASK) +Int 1)) -Int 1 // MASK = 0xffff...f
                             andBool 0 <=Int N andBool N <=Int MASK
+
+    // 0xffff...f &Int N = N
+    rule N &Int MASK => N  requires MASK ==Int (2 ^Int (log2Int(MASK) +Int 1)) -Int 1 // MASK = 0xffff...f
+                            andBool 0 <=Int N andBool N <=Int MASK
+
 
     // for gas calculation
     rule A -Int (#if C #then B1 #else B2 #fi) => #if C #then (A -Int B1) #else (A -Int B2) #fi
@@ -269,8 +296,6 @@ rule ACCTCODE in SetItem( 1 )
 
     rule bool2Word(A)  ==K 0 => notBool(A)
     rule bool2Word(A)  ==K 1 => A
-    rule bool2Word(A) =/=K 0 => A
-    rule bool2Word(A) =/=K 1 => notBool(A)
 
     rule chop(bool2Word(B)) => bool2Word(B)
 
@@ -335,57 +360,63 @@ rule #notPrecompileAddress ( X ) => 9 <=Int X andBool #rangeAddress(X)
 //RULES MUST USE ==K and not ==Int
 //Warning: assumes injective hashing
 rule keccakIntList(A B .IntList) ==K keccakIntList(C D .IntList) => A ==Int C andBool B ==Int D
-rule keccakIntList(A B .IntList) =/=K keccakIntList(C D .IntList) => A =/=Int C orBool B =/=Int D
 
 rule keccakIntList(A B C .IntList) ==K keccakIntList(D E F .IntList) => A ==Int D andBool B ==Int E andBool C ==Int F
-rule keccakIntList(A B C .IntList) =/=K keccakIntList(D E F .IntList) => A =/=Int D orBool B =/=Int E orBool C =/=Int F
 
 
 rule keccakIntList(C) ==K A => false
      requires 0 <=Int A andBool A <=Int 20
-rule keccakIntList(C) =/=K A => true
-     requires 0 <=Int A andBool A <=Int 20
 
 rule keccakIntList(C) +Int B ==K A => false
-     requires 0 <=Int A andBool A <=Int 20
-     andBool 0 <=Int B andBool B <=Int 20
-rule keccakIntList(C) +Int B =/=K A => true
      requires 0 <=Int A andBool A <=Int 20
      andBool 0 <=Int B andBool B <=Int 20
 
 rule A ==K keccakIntList(C) +Int B => false
      requires 0 <=Int A andBool A <=Int 20
      andBool 0 <=Int B andBool B <=Int 20
-rule A =/=K keccakIntList(C) +Int B => true
-     requires 0 <=Int A andBool A <=Int 20
-     andBool 0 <=Int B andBool B <=Int 20
 
 rule keccakIntList(C) +Int B ==K keccakIntList(A) => false
-     requires 0 <=Int B andBool B <=Int 20
-rule keccakIntList(C) +Int B =/=K keccakIntList(A) => true
      requires 0 <=Int B andBool B <=Int 20
 
 rule keccakIntList(A) +Int B ==K keccakIntList(A) +Int C => false
      requires B =/=Int C
-rule keccakIntList(A) +Int B =/=K keccakIntList(A) +Int C => true
-     requires B =/=Int C
 
 rule keccakIntList(A) +Int B ==K keccakIntList(C) +Int D => false
-     requires B =/=K C
-rule keccakIntList(A) +Int B =/=K keccakIntList(C) +Int D => true
      requires B =/=K C
 
 
 rule keccakIntList(A) ==K keccakIntList(C) +Int B => false
      requires 0 <=Int B andBool B <=Int 20
-rule keccakIntList(A) =/=K keccakIntList(C) +Int B => true
-     requires 0 <=Int B andBool B <=Int 20
 
 
 rule A ==K keccakIntList(C) => false
      requires 0 <=Int A andBool A <=Int 20
-rule A =/=K keccakIntList(C)=> true
-     requires 0 <=Int A andBool A <=Int 20
+
+rule Cgascap(SCHED, GCAP, GAVAIL, GEXTRA) => #if GAVAIL <Int GEXTRA orBool Gstaticcalldepth << SCHED >> #then GCAP #else minInt(#allBut64th(GAVAIL -Int GEXTRA), GCAP) #fi
+
+rule Csstore(SCHED, NEW, CURR, ORIG)
+  => #if CURR ==Int NEW orBool ORIG =/=Int CURR #then Gsload < SCHED > #else #if ORIG ==Int 0 #then Gsstoreset < SCHED > #else Gsstorereset < SCHED > #fi #fi
+  requires Ghasdirtysstore << SCHED >>
+
+rule Csstore(SCHED, NEW, CURR, ORIG)
+  => #if CURR ==Int 0 andBool NEW =/=Int 0 #then Gsstoreset < SCHED > #else Gsstorereset < SCHED > #fi
+  requires notBool Ghasdirtysstore << SCHED >>
+
+rule Rsstore(SCHED, NEW, CURR, ORIG) => #if CURR =/=Int 0 andBool NEW ==Int 0 #then Rsstoreclear < SCHED > #else 0 #fi
+      requires notBool Ghasdirtysstore << SCHED >>
+
+rule Cextra(SCHED, ISEMPTY, VALUE) => Gcall < SCHED > +Int Cnew(SCHED, ISEMPTY, VALUE) +Int Cxfer(SCHED, VALUE)
+
+rule Cmem(SCHED, N) => (N *Int Gmemory < SCHED >) +Int ((N *Int N) /Int Gquadcoeff < SCHED >)
+
+//Symbolic wrapper over the argument of #ecrec, no implementation.
+syntax Int ::= #symEcrec ( WordStack ) [function]
+
+rule <k> ECREC => #end EVMC_SUCCESS ... </k>
+       <callData> DATA </callData>
+       <output> _ => #ecrec(#symEcrec(DATA)) </output>
+    requires notBool #isConcrete(DATA) andBool #sizeWordStack(DATA) ==Int 128
+    [trusted]
 
 
 // ./src/storage.k.md
@@ -967,6 +998,38 @@ syntax Int ::= "#Gem.balances" "[" Int "]" [function]
 rule #Gem.balances[A] => #hashedLocation("Solidity", 1, A)
 // ./src/lemmas.k.md
 
+syntax Int ::= num0 ( Int ) [function, smtlib(smt_num0)]
+syntax Int ::= num1 ( Int ) [function, smtlib(smt_num1)]
+
+rule num0(N) >=Int 0 => num0(N) >=Int 1
+  requires N >=Int 1
+  andBool N modInt 2 ==Int 0
+
+rule num1(N) >=Int 0 => num1(N) >=Int 1
+  requires N >Int 1
+  andBool N modInt 2 =/=Int 0
+
+rule num0(N /Int 2) => num0(N) -Int 1
+  requires N >=Int 1
+  andBool N modInt 2 ==Int 0
+
+rule num0(N /Int 2) => num0(N)
+  requires N >=Int 1
+  andBool N modInt 2 ==Int 1
+
+rule num1(N /Int 2) => num1(N) -Int 1
+  requires N >Int 1
+  andBool N modInt 2 ==Int 1
+
+rule num1(N /Int 2) => num1(N)
+  requires N >Int 1
+  andBool N modInt 2 ==Int 0
+
+rule num0(N) => 0
+  requires N ==Int 1
+
+rule num1(N) => 0
+  requires N ==Int 1
 
 syntax Int ::= "#string2Word" "(" String ")" [function]
 // ----------------------------------------------------
@@ -980,7 +1043,78 @@ syntax Int ::= "#Ray" [function]
 rule #Ray => 1000000000000000000000000000
 syntax Int ::= "#rmul" "(" Int "," Int ")" [function]
 
-syntax Int ::= "#rpow" "(" Int "," Int "," Int "," Int ")"  [function]
+syntax Int ::= "#rpow" "(" Int "," Int "," Int "," Int ")"  [function, smtlib(smt_rpow), smt-prelude]
+
+syntax Int ::= "#ifInt" Bool "#then" Int "#else" Int "#fi" [function, smtlib(ite), hook(KEQUAL.ite)]
+
+rule A *Int C /Int C => A
+  requires A *Int C <Int pow256
+
+rule (X *Int Y) /Word Y => #ifInt Y ==Int 0 #then 0 #else chop(X) #fi
+
+rule A /Int B <Int pow256 => true
+  requires A <Int pow256
+
+rule Z *Int (X ^Int N) => Z
+  requires N ==Int 0
+
+rule Z *Int (X ^Int (N %Int 2)) => Z
+  requires N ==Int 0
+
+rule 0 ^Int N => 1
+  requires N ==Int 0
+
+rule 0 ^Int N => 0
+  requires N >Int 0
+
+rule 0 <=Int (N /Int 2) => true
+  requires 0 <=Int N
+
+rule N /Int 2 <Int pow256 => true
+  requires N <Int pow256
+
+// TODO - review - do i need it?
+rule chop(X *Int X) => X *Int X
+  requires #rpow(Z, X, N, B) *Int B <Int pow256
+  andBool N >=Int 2
+
+
+rule #rpow(Z, X, 0, Base) => Z
+
+rule #rpow(Z, X, N, Base) => Z
+  requires N modInt 2 ==Int 0
+  andBool N /Int 2 ==Int 0
+
+rule #rpow(Z, 0, N, Base) => 0
+
+rule #rpow(Base, X, N, Base) => X
+  requires N ==Int 1
+
+rule #rpow(((Z *Int X) +Int Half) /Int Base, X, N /Int 2, Base) =>
+     #rpow(Z,                                 X, N,       Base)
+  requires Half ==Int Base /Int 2
+  andBool  N ==Int 1
+
+rule #rpow(((Z *Int X) +Int Half) /Int Base, ((X *Int X) +Int Half) /Int Base, N /Int 2, Base) =>
+     #rpow( Z                               , X                               , N       , Base )
+  requires N modInt 2 =/=Int 0
+  andBool  N >=Int 2
+  andBool Half ==Int Base /Int 2
+
+rule #rpow( Z                              , ((X *Int X) +Int Half) /Int Base, N /Int 2, Base) =>
+     #rpow( Z                              , X                               , N       , Base )
+  requires N modInt 2 ==Int 0
+  andBool  N >=Int 2
+andBool Half ==Int Base /Int 2
+
+rule #rpow( X                              , ((X *Int X) +Int Half) /Int Base, N /Int 2, Base) =>
+     #rpow( Base                           , X                               , N       , Base )
+  requires N modInt 2 =/=Int 0
+  andBool  N /Int 2 =/=Int 0
+  andBool  Half ==Int Base /Int 2
+
+rule Z *Int X <Int pow256 => true
+  requires #rpow(Z, X, N, Base) <Int pow256
 // hashed storage offsets never overflow (probabilistic assumption):
 rule chop(keccakIntList(L) +Int N) => keccakIntList(L) +Int N
   requires N <=Int 100
@@ -1150,45 +1284,26 @@ rule abs(#unsigned(A *Int B)) /Int abs(#unsigned(B)) => A
   andBool #rangeSInt(256, A *Int B)
   andBool notBool (#unsigned(B) ==Int 0)
 
+rule sgn(#unsigned(A *Int B)) *Int sgn(#unsigned(B)) => 1
+  requires #rangeSInt(256, B)
+  andBool #rangeUInt(256, A)
+  andBool #rangeSInt(256, A)
+  andBool #rangeSInt(256, A *Int B)
 
 rule abs(B) ==K 0 => B ==K 0
 
-// possibly get rid of
-rule #sgnInterp(sgn(W), abs(W)) => W
-  requires #rangeUInt(256, W)
-
-rule #sgnInterp(sgn(#unsigned(A *Int B) *Int sgn(#unsigned(B))), A) => A
-  requires #rangeSInt(256, A *Int B)
-  andBool #rangeUInt(256, A)
-  andBool #rangeSInt(256, B)
-  andBool #rangeSInt(256, A)
-
-
-rule #sgnInterp(sgn(#unsigned(A *Int B)), A) => A
-  requires #rangeUInt(256, A)
-  andBool #rangeSInt(256, B)
-  andBool #rangeSInt(256, A *Int B)
-  andBool B >=Int 0
-
-rule #sgnInterp(sgn(#unsigned(A *Int B)) *Int (-1), A) => A
-  requires #rangeUInt(256, A)
-  andBool #rangeSInt(256, B)
-  andBool #rangeSInt(256, A *Int B)
-  andBool B <Int 0
-
 // lemmas for necessity
-rule (#sgnInterp(sgn(chop(A *Int #unsigned(B))), abs(chop(A *Int #unsigned(B))) /Int abs(#unsigned(B))) ==K A) => A *Int B <=Int maxSInt256
+rule #signed(X) <Int 0 => #rangeSInt(256, X)
+   requires #rangeUInt(256, X)
+
+rule A ==K 0 => false
+requires notBool (#rangeSInt(256, B) andBool #rangeSInt(256, A *Int B))
+     andBool #rangeSInt(256, B)
+
+rule (#sgnInterp(sgn(chop(A *Int #unsigned(B))) *Int sgn(#unsigned(B)), chop(abs(chop(A *Int #unsigned(B))) /Int abs(#unsigned(B)))) ==K A) => false
   requires #rangeUInt(256, A)
   andBool #rangeSInt(256, B)
-  andBool B >Int 0
-
-rule (#sgnInterp(sgn(chop(A *Int #unsigned(B))) *Int (-1), abs(chop(A *Int #unsigned(B))) /Int abs(#unsigned(B))) ==K A) => A *Int B >=Int minSInt256
-  requires #rangeUInt(256, A)
-  andBool #rangeSInt(256, B)
-  andBool B <Int 0
-
-rule (chop(A *Int B) /Int B ==K A) => A *Int B <=Int maxUInt256
-  requires #rangeUInt(256, A)
-  andBool #rangeUInt(256, B)
+  andBool B =/=Int 0
+  andBool notBool #rangeSInt(256, A *Int B)
 
 endmodule
